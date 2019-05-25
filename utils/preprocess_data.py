@@ -20,6 +20,8 @@ from Config import Config
 def clean_data(df):
     df['latitude'] = df['geohash6'].apply(lambda x: float(geohash2.decode(x)[0]))
     df['longitude'] = df['geohash6'].apply(lambda x: float(geohash2.decode(x)[1]))
+    df['Hour'] = df['timestamp'].apply(lambda x: int(x.split(':')[0]))
+    df['Minute'] = df['timestamp'].apply(lambda x: int(x.split(':')[1]))
     return df
     
 
@@ -38,6 +40,7 @@ def parrellize_clean_data(df, func):
 if __name__ == '__main__':
     df = pd.read_csv(os.path.join(Config.DATA_DIR, Config.ORIGINAL_TRG_FILE))
     cleaned_df = parrellize_clean_data(df, clean_data)
+    cleaned_df = cleaned_df.drop(['timestamp'], axis=1)
     cleaned_df.to_csv(os.path.join(Config.DATA_DIR, Config.CLEANED_TRG_FILE),
                       index=False)
     print("Preprocessing Done")
