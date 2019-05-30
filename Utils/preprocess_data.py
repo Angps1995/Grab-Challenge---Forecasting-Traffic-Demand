@@ -18,14 +18,14 @@ from Config import Config
 
 
 def clean_data(df):
-    df['latitude'] = df['geohash6'].apply(lambda x: float(geohash2.decode(x)[0]))
-    df['longitude'] = df['geohash6'].apply(lambda x: float(geohash2.decode(x)[1]))
+    df['latitude'] = df['geohash6'].apply(lambda x: float(geohash2.decode_exactly(x)[0]))
+    df['longitude'] = df['geohash6'].apply(lambda x: float(geohash2.decode_exactly(x)[1]))
+    df['latitude_error'] = df['geohash6'].apply(lambda x: float(geohash2.decode_exactly(x)[2]))
+    df['longitude_error'] = df['geohash6'].apply(lambda x: float(geohash2.decode_exactly(x)[3]))
     df['Hour'] = df['timestamp'].apply(lambda x: int(x.split(':')[0]))
     df['Minute'] = df['timestamp'].apply(lambda x: int(x.split(':')[1]))
     return df
     
-
-
 def parrellize_clean_data(df, func):
     num_cores = cpu_count() - 2 
     num_partitions = num_cores
