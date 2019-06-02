@@ -24,10 +24,11 @@ def clean_data(df):
     df['longitude_error'] = df['geohash6'].apply(lambda x: float(geohash2.decode_exactly(x)[3]))
     df['Hour'] = df['timestamp'].apply(lambda x: int(x.split(':')[0]))
     df['Minute'] = df['timestamp'].apply(lambda x: int(x.split(':')[1]))
+    df['Period'] = ((df['day'] - 1) * 24 * 4) + (df['Hour'] * 4) + df['Minute'] // 15 
     return df
     
 def parrellize_clean_data(df, func):
-    num_cores = cpu_count() - 2 
+    num_cores = max(1, cpu_count() - 2)  # at least 1 core used, -2 to prevent machine crashing
     num_partitions = num_cores
     df_split = np.array_split(df, num_partitions)
     pool = Pool(num_cores)
