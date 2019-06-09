@@ -1,5 +1,5 @@
 """
-Convert geohash to latitude and longitude
+Clean and add features for dataset
 
 Author: Ang Peng Seng
 Date: May 2019
@@ -28,7 +28,7 @@ def clean_data(df):
     return df
     
 def parrellize_clean_data(df, func):
-    num_cores = max(1, cpu_count() - 2)  # at least 1 core used, -2 to prevent machine crashing
+    num_cores = max(1, cpu_count() - 2)  # at least 1 core used, -2 cpu to prevent machine from freezing
     num_partitions = num_cores
     df_split = np.array_split(df, num_partitions)
     pool = Pool(num_cores)
