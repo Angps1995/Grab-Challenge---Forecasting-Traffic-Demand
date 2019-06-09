@@ -11,7 +11,25 @@ In this challenge, I aim to build a model trained on a historical demand dataset
 
 ## **Generating predictions**
 
-1)
+1) Open terminal and run pip3 install -r requirements.txt 
 
-2)
+2) Run python3 generate_predictions.py --file < test set csv file path > 
 
+The script will output a csv file of each geohash and its respective T+1 to T+5 predictions, the format is as shown:
+
+| Geohash6 | day | Hour | Minute | Predicted Demand |
+| -------- | --- | ---- | ------ | ---------------- |
+|    ..    | ..  | ..   |  ..    |      ..          |
+
+
+## **Training**
+
+1) Open terminal and run pip3 install -r requirements.txt 
+
+2) Put the dataset csv file into the Data/ folder.
+
+3) Check the parameters in Config.py to match your preferences/settings.
+
+4) Run preprocess_data.py in the Utils folder.
+
+5) Run train.py
