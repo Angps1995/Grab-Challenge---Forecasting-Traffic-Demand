@@ -12,7 +12,7 @@ from Model.model import traffic_demand_model, rmse
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('-batch', default=4, type=int, help='Batch size')
+    parser.add_argument('-batch', default=32, type=int, help='Batch size')
     parser.add_argument('-epochs', default=10, type=int, help='Number of epochs to train')
     args = parser.parse_args()
 
