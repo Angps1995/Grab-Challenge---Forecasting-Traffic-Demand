@@ -5,8 +5,8 @@ from keras import backend as K
 
 def fc_layer(inputs, output_units, batch_norm):
     net = tf.keras.layers.Dense(output_units)(inputs)
-    #if batch_norm:
-        #net = tf.keras.layers.BatchNormalization()(net)
+    if batch_norm:
+        net = tf.keras.layers.BatchNormalization()(net)
     net = tf.keras.layers.Activation('relu')(net)
     return net
 

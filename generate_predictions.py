@@ -13,44 +13,58 @@ from Utils.preprocess_data import clean_data, parrellize_clean_data
 
 
 def predict_demand(df, list_geohashes):
-    # return np.array([['x',1,1,1,1], ['y',2,2,2,2],
-    #                 ['z',3,3,3,3], ['a',4,4,4,4], ['b',5,5,5,5]] etc)
-    temp_df = df[df['geohash6'].isin(list_geohashes)]
-
-    # temp_df = temp_df.reset_index(drop=True, inplace=False)
-    # latest_per = temp_df['Period'].max()
-    # temp_df = temp_df[temp_df['Period'] == latest_per]
-    # lat = temp_df.get('latitude').values[0]
-    # long = temp_df.get('longitude').values[0]
-    # period = temp_df.get('Period').values[0]
-    # feat = get_neigh_grid(temp_df, lat, long, period + 1)
-    # #pred = model.predict(np.reshape(feat, (-1, 5, 5, 4)))[0]
-    # pred = np.array([1,2,3,4,5])
-    # row_pred = np.array([])
-    # for i in range(len(pred)):
-    #     temp_per = period + i + 1
-    #     day, hour, minute = period_to_dayhourmin(temp_per)
-    #     row = np.array([geohash, day, hour, minute, pred[i]])
-    #     row_pred = np.vstack((row_pred, row)) if row_pred.size else row
-    # return row_pred
+    test_df = df[df['geohash6'].isin(list_geohashes)]
+    test_df = test_df.reset_index(drop=True, inplace=False)
+    max_idx = test_df.groupby(['geohash6'])['Period'].idxmax().values
+    test_df = test_df.iloc[max_idx, :]
+    list_lat = list(test_df['latitude'].values)
+    list_long = list(test_df['longitude'].values)
+    list_period = list(test_df['Period'].values)
+    feats = get_neigh_grid(df, list_lat, list_long, list_period)
+    feats = np.reshape(feats,(-1,5,5,4))
+    feats = np.moveaxis(feats, -1, 1)
+    pred = model.predict(np.reshape(feats, (len(list_geohashes), 4, 5, 5, 1)))
+    pred = pred.flatten()
+    row_pred = np.array([])
+    for i in range(len(pred)):
+        temp_per = list_period[i] + 1
+        day, hour, minute = period_to_dayhourmin(temp_per)
+        geohash = geohash2.encode(list_lat[i], list_long[i], 6)
+        row = np.array([geohash, list_lat[i], list_long[i], day, hour, minute, temp_per, pred[i]])
+        row_pred = np.vstack((row_pred, row)) if row_pred.size else row
+    return row_pred
 
 
 def predict_all_future_demand(df):
 
     # 1) get list of all the geohashes in the dataset
     geohash_list = list(df.geohash6.unique()) 
-    num_geohash = len(geohash_list)
-    # 2) create new df 
-    prediction_df = pd.DataFrame(columns=['Geohash6', 'day', 'Hour', 'Minute', 'Predicted Demand'])
-
+    df = df[['geohash6', 'latitude', 'longitude', 'day', 'Hour', 'Minute', 'Period','demand']]
+    
+    # 2) create pred df 
+    prediction_df = pd.DataFrame(columns=['geohash6', 'latitude', 'longitude', 'day', 'Hour', 'Minute', 'Period', 'Predicted Demand'])
+    predictions = np.array([])
     # 3) predict for geohash
-    for batch in range(len(num_geohash)//128):
-        list_geohashes = geohash_list[batch:batch+128]
-        pred = predict_demand(df, list_geohashes)
+    for i in range(5):
+        predictions = predict_demand(df, geohash_list)
         series_pred = [pd.Series(p, index=prediction_df.columns)
-                       for p in pred]
+                       for p in predictions]
+        series_pred_1 = [pd.Series(p, index=df.columns)
+                               for p in predictions]
+        df = df.append(series_pred_1, ignore_index=True)
         prediction_df = prediction_df.append(series_pred, ignore_index=True)
+        for col in df.columns.difference(['geohash6', 'demand', 'latitude', 'longitude']):
+            df[col] = df[col].astype(int)
+        for col in ['demand', 'latitude', 'longitude']:
+            df[col] = df[col].astype(float)
+        df['demand'] = df['demand'].astype(float)
+    prediction_df['geohash6'] = prediction_df['geohash6'].astype(str)
+    for col in prediction_df.columns.difference(['geohash6', 'Predicted Demand', 'latitude', 'longitude']):
+        prediction_df[col]=prediction_df[col].astype(int)
+    for col in ['Predicted Demand', 'latitude', 'longitude']:
+        prediction_df[col] = prediction_df[col].astype(float)
     return prediction_df
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -64,17 +78,17 @@ if __name__ == '__main__':
         print("Preprocessing dataset")
         df = parrellize_clean_data(df, clean_data)
         print("Processing Done")
-        night_df = df[(df['day']<=25) & (df['Hour'] >=20)]
+        night_df = df[(df['day'] <= 24) & (df['Hour'] >=20)]
     except:
         raise Exception('Check your input test data csv file path again.')
 
     print('Loading Model...')
     model = traffic_demand_model()
-    model.load_weights(os.path.join(Config.MODEL_LOGS_DIR, Config.NIGHT_WEIGHTS))
+    model.load_weights(os.path.join(Config.MODEL_LOGS_DIR, Config.WEIGHTS))
     print('Model Loaded Successfully')
 
     print('Dataset loaded successfully. Predicting now...')
     prediction_df = predict_all_future_demand(night_df)
     print('Prediction done')
-    prediction_df.to_csv(args.output)
+    prediction_df.to_csv(args.output, index=False)
     print('Predictions csv saved to --> ' + str(args.output))
