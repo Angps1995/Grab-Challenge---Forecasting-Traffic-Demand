@@ -26,7 +26,8 @@ def clean_data(df):
     df['Minute'] = df['timestamp'].apply(lambda x: int(x.split(':')[1]))
     df['Period'] = ((df['day'] - 1) * 24 * 4) + (df['Hour'] * 4) + df['Minute'] // 15 
     return df
-    
+
+
 def parrellize_clean_data(df, func):
     num_cores = max(1, cpu_count() - 2)  # at least 1 core used, -2 cpu to prevent machine from freezing
     num_partitions = num_cores

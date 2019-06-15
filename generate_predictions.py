@@ -1,13 +1,26 @@
+"""
+Script to generate Predictions
+
+Author: Ang Peng Seng
+Date: June 2019
+"""
+
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 import keras
 import geohash2
-from Model.model import traffic_demand_model
+
 import os
 import argparse
 from Config import Config
-from Feature_Engineering.get_nearest_loc import get_neigh_grid, get_demand
+import sys
+import os
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+ROOT_DIR = os.path.dirname(BASE_DIR)
+sys.path.append(os.path.join(BASE_DIR, 'Model'))
+from Model.model import traffic_demand_model
+from Feature_Engineering.feature_extraction import get_neigh_grid, get_demand
 from Utils.utils import dayhourmin_to_period, period_to_dayhourmin
 from Utils.preprocess_data import clean_data, parrellize_clean_data
 
@@ -21,16 +34,17 @@ def predict_demand(df, list_geohashes):
     list_long = list(test_df['longitude'].values)
     list_period = list(test_df['Period'].values)
     feats = get_neigh_grid(df, list_lat, list_long, list_period)
-    feats = np.reshape(feats,(-1,5,5,4))
-    feats = np.moveaxis(feats, -1, 1)
-    pred = model.predict(np.reshape(feats, (len(list_geohashes), 4, 5, 5, 1)))
+    feats = np.reshape(feats, (-1, 5, 5, 4))
+    pred = model.predict(np.reshape(feats, (len(list_geohashes), 5, 5, 4)))
     pred = pred.flatten()
     row_pred = np.array([])
     for i in range(len(pred)):
         temp_per = list_period[i] + 1
         day, hour, minute = period_to_dayhourmin(temp_per)
+        timestamp = str(hour) + ":" + str(minute)
         geohash = geohash2.encode(list_lat[i], list_long[i], 6)
-        row = np.array([geohash, list_lat[i], list_long[i], day, hour, minute, temp_per, pred[i]])
+        row = np.array([geohash, list_lat[i], list_long[i], timestamp,
+                        day, hour, minute, temp_per, pred[i]])
         row_pred = np.vstack((row_pred, row)) if row_pred.size else row
     return row_pred
 
@@ -39,10 +53,13 @@ def predict_all_future_demand(df):
 
     # 1) get list of all the geohashes in the dataset
     geohash_list = list(df.geohash6.unique()) 
-    df = df[['geohash6', 'latitude', 'longitude', 'day', 'Hour', 'Minute', 'Period','demand']]
+    df = df[['geohash6', 'latitude', 'longitude', 'timestamp', 
+             'day', 'Hour', 'Minute', 'Period', 'demand']]
     
     # 2) create pred df 
-    prediction_df = pd.DataFrame(columns=['geohash6', 'latitude', 'longitude', 'day', 'Hour', 'Minute', 'Period', 'Predicted Demand'])
+    prediction_df = pd.DataFrame(columns=['geohash6', 'latitude', 'longitude',
+                                          'timestamp', 'day', 'Hour', 'Minute',
+                                          'Period', 'Predicted Demand'])
     predictions = np.array([])
     # 3) predict for geohash
     for i in range(5):
@@ -53,17 +70,19 @@ def predict_all_future_demand(df):
                                for p in predictions]
         df = df.append(series_pred_1, ignore_index=True)
         prediction_df = prediction_df.append(series_pred, ignore_index=True)
-        for col in df.columns.difference(['geohash6', 'demand', 'latitude', 'longitude']):
+        for col in df.columns.difference(['geohash6', 'demand', 'latitude', 'longitude', 'timestamp']):
             df[col] = df[col].astype(int)
         for col in ['demand', 'latitude', 'longitude']:
             df[col] = df[col].astype(float)
         df['demand'] = df['demand'].astype(float)
+        df['timestamp'] = df['timestamp'].astype(str)
     prediction_df['geohash6'] = prediction_df['geohash6'].astype(str)
-    for col in prediction_df.columns.difference(['geohash6', 'Predicted Demand', 'latitude', 'longitude']):
-        prediction_df[col]=prediction_df[col].astype(int)
+    prediction_df['timestamp'] = prediction_df['timestamp'].astype(str)
+    for col in prediction_df.columns.difference(['geohash6', 'Predicted Demand', 'latitude', 'longitude', 'timestamp']):
+        prediction_df[col] = prediction_df[col].astype(int)
     for col in ['Predicted Demand', 'latitude', 'longitude']:
         prediction_df[col] = prediction_df[col].astype(float)
-    return prediction_df
+    return prediction_df[['geohash6', 'day', 'timestamp', 'Hour', 'Minute', 'Predicted Demand']]
 
 
 if __name__ == '__main__':
@@ -78,7 +97,6 @@ if __name__ == '__main__':
         print("Preprocessing dataset")
         df = parrellize_clean_data(df, clean_data)
         print("Processing Done")
-        night_df = df[(df['day'] <= 24) & (df['Hour'] >=20)]
     except:
         raise Exception('Check your input test data csv file path again.')
 
@@ -88,7 +106,7 @@ if __name__ == '__main__':
     print('Model Loaded Successfully')
 
     print('Dataset loaded successfully. Predicting now...')
-    prediction_df = predict_all_future_demand(night_df)
+    prediction_df = predict_all_future_demand(df)
     print('Prediction done')
     prediction_df.to_csv(args.output, index=False)
     print('Predictions csv saved to --> ' + str(args.output))

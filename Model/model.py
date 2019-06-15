@@ -6,9 +6,14 @@ Date: June 2019
 """
 
 import tensorflow as tf
-import keras 
+import keras
 from keras import backend as K
-from Model.model_utils import fc_layer
+import sys
+import os
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+ROOT_DIR = os.path.dirname(BASE_DIR)
+sys.path.append(ROOT_DIR)
+from model_utils import fc_layer, conv2d
 
 
 def rmse(y_true, y_pred):
@@ -16,33 +21,24 @@ def rmse(y_true, y_pred):
 
 
 def traffic_demand_model():
-    _input = tf.keras.layers.Input(shape=(4, 5, 5, 1))
-    net = tf.keras.layers.ConvLSTM2D(filters=16, kernel_size=(2,2), strides=(1, 1), padding='same', 
-                                 kernel_initializer=tf.contrib.layers.xavier_initializer(),
-                                 bias_initializer=tf.contrib.layers.xavier_initializer(),
-                                    data_format='channels_last',
-                                    return_sequences=True)(_input)
-    net = tf.keras.layers.BatchNormalization()(net)
-    net = tf.keras.layers.Activation('relu')(net)
-#     net = tf.keras.layers.ConvLSTM2D(filters=32, kernel_size=(2,2), strides=(1, 1), padding='same', 
-#                                  kernel_initializer=tf.contrib.layers.xavier_initializer(),
-#                                  bias_initializer=tf.contrib.layers.xavier_initializer(),
-#                                     data_format='channels_last',
-#                                     return_sequences=True)(net)
-#     net = tf.keras.layers.BatchNormalization()(net)
-    net = tf.keras.layers.Activation('relu')(net)
-    net = tf.keras.layers.ConvLSTM2D(filters=16, kernel_size=(2,2), strides=(1, 1), padding='same', 
-                                 kernel_initializer=tf.contrib.layers.xavier_initializer(),
-                                 bias_initializer=tf.contrib.layers.xavier_initializer(),
-                                    data_format='channels_last')(net)
-    net = tf.keras.layers.BatchNormalization()(net)
-    net = tf.keras.layers.Activation('relu')(net)
-#     net = tf.keras.layers.MaxPool2D(pool_size=(1,5))(net)
-#     net = tf.keras.layers.MaxPool2D(pool_size=(5,1))(net)
+    _input = tf.keras.layers.Input(shape=(5, 5, 4))
+    net = conv2d(inputs=_input, filters=16, kernel_size=(2, 2), strides=(1, 1),
+                 padding='same')
+    net = conv2d(inputs=net, filters=16, kernel_size=(2, 2), strides=(1, 1),
+                 padding='valid')
+    net = conv2d(inputs=net, filters=16, kernel_size=(2, 2), strides=(1, 1),
+                 padding='valid')
+    net = conv2d(inputs=net, filters=16, kernel_size=(2, 2), strides=(1, 1),
+                 padding='valid')
+    net = conv2d(inputs=net, filters=16, kernel_size=(2, 2), strides=(1, 1),
+                 padding='valid')
     net = tf.keras.layers.Flatten()(net)
-    net = fc_layer(net, 16, batch_norm=True)
-    #net = tf.keras.layers.Dense(5, kernel_initializer='normal')(net)
+    net = fc_layer(net, 8, batch_norm=True)
     net = tf.keras.layers.Dense(1, kernel_initializer='normal')(net)
     net = tf.keras.layers.Activation('relu')(net)
-    model = tf.keras.models.Model(inputs=_input ,outputs=net)
+    model = tf.keras.models.Model(inputs=_input, outputs=net)
     return model
+
+if __name__ == '__main__':
+    model = traffic_demand_model()
+    model.summary()
