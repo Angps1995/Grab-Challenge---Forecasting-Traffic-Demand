@@ -11,6 +11,14 @@ In this challenge, I aim to build a model trained on a historical demand dataset
 
 ## **Generating predictions**
 
+The script assumes the test set csv follows the same format as the training.csv given, which is 
+
+| geohash6 | day | timestamp | demand |
+| -------- | --- | --------- | ------ |
+|    ..    | ..  | .......   |  ..... | 
+
+To generate predictions:
+
 1) Open terminal and run pip3 install -r requirements.txt 
 
 2) Open the Config.py file and change the file directories paths to the path on your local machine. 
